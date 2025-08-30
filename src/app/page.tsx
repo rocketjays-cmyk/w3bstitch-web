@@ -6,11 +6,11 @@ export default function Home() {
           W3b Stitch — <span className="text-indigo-400">Proof of Authenticity</span>
         </h1>
         <p className="mb-10 text-lg text-gray-300 max-w-2xl mx-auto">
-          A decentralized trust engine for verifying media, credentials, and identities.  
+          A decentralized trust engine for verifying media, credentials, and identities.
           Built on <span className="font-semibold">Polkadot</span> for security and interoperability.
         </p>
 
-        <div className="space-x-4">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
           <a
             href="/polkadot"
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg transition"
