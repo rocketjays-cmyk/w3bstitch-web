@@ -2,12 +2,13 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import type { DispatchError } from "@polkadot/types/interfaces";
+import type { AccountInfo } from "@polkadot/types/interfaces/system";
 
 /**
  * W3b Stitch — Anchor Media (Westend / Polkadot)
  * - Client-only (safe for Vercel)
  * - Dynamic imports for chain libs
- * - Robust tx flow: Broadcast → InBlock → Finalized (with nonce:-1)
+ * - Robust tx flow: Broadcast → InBlock → Finalized (nonce:-1)
  * - Receipt download (JSON)
  */
 
@@ -24,14 +25,11 @@ export default function AnchorPage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const wsEndpoint = useMemo(
-    () =>
-      network === "westend"
-        ? "wss://westend-rpc.polkadot.io"
-        : "wss://rpc.polkadot.io",
+    () => (network === "westend" ? "wss://westend-rpc.polkadot.io" : "wss://rpc.polkadot.io"),
     [network]
   );
 
-  // ---------------- utils ----------------
+  // ---------- utils ----------
   function toHexFromUtf8(s: string) {
     const bytes = new TextEncoder().encode(s);
     let hex = "0x";
@@ -49,7 +47,7 @@ export default function AnchorPage() {
     return addr.slice(0, 6) + "…" + addr.slice(-6);
   }
 
-  // --------------- hashing ----------------
+  // ---------- hashing ----------
   async function hashFromUrl(u: string) {
     setStatus("Downloading media…");
     const res = await fetch(u, { mode: "cors" });
@@ -71,7 +69,7 @@ export default function AnchorPage() {
     setStatus("Hash ready.");
   }
 
-  // --------------- wallet ----------------
+  // ---------- wallet ----------
   async function connectWallet() {
     setStatus("Connecting wallet…");
     const { web3Enable, web3Accounts } = await import("@polkadot/extension-dapp");
@@ -82,7 +80,7 @@ export default function AnchorPage() {
     setStatus(`Wallet connected: ${short(accounts[0].address)}`);
   }
 
-  // --------------- anchor ----------------
+  // ---------- anchor ----------
   async function doAnchor() {
     try {
       if (!hashHex) throw new Error("No hash to anchor.");
@@ -94,24 +92,23 @@ export default function AnchorPage() {
         import("@polkadot/extension-dapp"),
       ]);
 
-      // Always use a full RPC (avoid light:// to prevent metadata issues)
+      // Use a full RPC (avoid light://)
       const provider = new WsProvider(wsEndpoint);
       const api = await ApiPromise.create({ provider });
 
-      // Basic health + balance checks
-      const [health, accountInfo] = await Promise.all([
+      // Health + balance checks
+      const [health, accountInfoRaw] = await Promise.all([
         api.rpc.system.health(),
         api.query.system.account(wallet.address),
       ]);
-
       if (!health.isSyncing.isFalse) {
         setStatus("RPC is syncing; try again in a minute or switch RPC.");
         return;
       }
 
-      // @ts-expect-error runtime type
+      const accountInfo = accountInfoRaw as unknown as AccountInfo;
       const free = BigInt(accountInfo.data.free.toString());
-      const MIN = 1_000_000_000n; // ~0.01 WND
+      const MIN = BigInt(1_000_000_000); // ~0.01 WND
       if (network === "westend" && free < MIN) {
         setStatus(`Not enough WND to pay fees. Free balance: ${free.toString()}`);
         return;
@@ -135,14 +132,12 @@ export default function AnchorPage() {
       const unsub = await tx.signAndSend(
         wallet.address,
         { signer: injector.signer, nonce: -1 },
-        ({ status: st, dispatchError, events }) => {
+        ({ status, dispatchError, events }) => {
           if (dispatchError) {
             const err = dispatchError as DispatchError;
             if (err.isModule) {
               const decoded = api.registry.findMetaError(err.asModule);
-              setStatus(
-                `On-chain error: ${decoded.section}.${decoded.name} — ${decoded.docs.join(" ")}`
-              );
+              setStatus(`On-chain error: ${decoded.section}.${decoded.name} — ${decoded.docs.join(" ")}`);
             } else {
               setStatus(`On-chain error: ${err.toString()}`);
             }
@@ -150,32 +145,29 @@ export default function AnchorPage() {
             return;
           }
 
-          if (st.isBroadcast) setStatus("📡 Broadcasted… waiting for inclusion");
-          if (st.isInBlock) setStatus(`✅ Included in block: ${st.asInBlock.toString()}`);
-          if (st.isFinalized) {
-            const blockHash = st.asFinalized.toString();
+          if (status.isBroadcast) setStatus("📡 Broadcasted… waiting for inclusion");
+          if (status.isInBlock) setStatus(`✅ Included in block: ${status.asInBlock.toString()}`);
+          if (status.isFinalized) {
+            const blockHash = status.asFinalized.toString();
             setFinalizedBlock(blockHash);
 
-            // Check for failure just in case
             const failed = events.some(
-              (e: { event: { section: string; method: string } }) =>
-                e.event.section === "system" && e.event.method === "ExtrinsicFailed"
+              (e) => e.event.section === "system" && e.event.method === "ExtrinsicFailed"
             );
-            if (failed) {
-              setStatus("❌ Included but failed — see Subscan for details.");
-            } else {
-              setStatus(`🎉 Finalized in block ${blockHash}`);
-            }
+            setStatus(failed ? "❌ Included but failed — see Subscan for details." : `🎉 Finalized in block ${blockHash}`);
             unsub();
           }
         }
       );
 
-      // Last resort hint if node never includes it
+      // Fallback notice if nothing includes
       setTimeout(() => {
-        if (!finalizedBlock) {
-          setStatus("Still waiting for inclusion… try again or switch RPC.");
-        }
+        // use a fresh read of state
+        setStatus((prev) =>
+          !prev.includes("Finalized") && !prev.includes("Included")
+            ? "Still waiting for inclusion… try again or switch RPC."
+            : prev
+        );
       }, 90_000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -183,7 +175,7 @@ export default function AnchorPage() {
     }
   }
 
-  // --------------- receipt download ---------------
+  // ---------- receipt ----------
   function downloadReceipt() {
     if (!extrinsicHash || !wallet) return;
     const receipt = {
@@ -200,9 +192,7 @@ export default function AnchorPage() {
         ts: new Date().toISOString(),
       },
     };
-    const blob = new Blob([JSON.stringify(receipt, null, 2)], {
-      type: "application/json",
-    });
+    const blob = new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" });
     const href = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = href;
@@ -211,7 +201,7 @@ export default function AnchorPage() {
     URL.revokeObjectURL(href);
   }
 
-  // --------------- UI ---------------
+  // ---------- UI ----------
   const subscanBase =
     network === "westend"
       ? "https://westend.subscan.io/extrinsic/"
@@ -226,10 +216,7 @@ export default function AnchorPage() {
 
       <label style={{ display: "block", marginBottom: 8 }}>
         Network:&nbsp;
-        <select
-          value={network}
-          onChange={(e) => setNetwork(e.target.value as "westend" | "polkadot")}
-        >
+        <select value={network} onChange={(e) => setNetwork(e.target.value as "westend" | "polkadot")}>
           <option value="westend">Westend (testnet)</option>
           <option value="polkadot">Polkadot (mainnet)</option>
         </select>
@@ -254,9 +241,7 @@ export default function AnchorPage() {
           />
           <button
             onClick={() =>
-              url
-                ? hashFromUrl(url).catch((e) => setStatus(e.message))
-                : setStatus("Enter a URL or pick a file first")
+              url ? hashFromUrl(url).catch((e) => setStatus(e.message)) : setStatus("Enter a URL or pick a file first")
             }
           >
             Hash URL
