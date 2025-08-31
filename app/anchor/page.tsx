@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
+import type { DispatchError } from "@polkadot/types/interfaces";
 
 /**
- * Minimal anchor UI that builds on Vercel.
- * - All blockchain libs are loaded dynamically on click (no SSR imports).
- * - No Node-only globals are used during build.
+ * W3b Stitch — Anchor Media to Polkadot (Westend/Mainnet)
+ * - Client-only (safe for Vercel): all chain libs are dynamically imported at runtime.
+ * - Hashes a URL or local file, signs via Polkadot.js extension, posts system.remarkWithEvent.
+ * - Shows extrinsic + finalized block and lets you download a TDR receipt JSON.
  */
 
 export default function AnchorPage() {
@@ -100,14 +102,15 @@ export default function AnchorPage() {
       { signer: injector.signer },
       ({ status: st, dispatchError }) => {
         if (dispatchError) {
-          const anyErr: any = dispatchError;
-          if (anyErr.isModule) {
-            const decoded = api.registry.findMetaError(anyErr.asModule);
+          const err = dispatchError as DispatchError;
+          if (err.isModule) {
+            const decoded = api.registry.findMetaError(err.asModule);
             setStatus(`Error: ${decoded.section}.${decoded.name} — ${decoded.docs.join(" ")}`);
           } else {
-            setStatus(`Error: ${anyErr.toString()}`);
+            setStatus(`Error: ${err.toString()}`);
           }
         }
+
         if (st.isInBlock) {
           setStatus(`In block: ${st.asInBlock.toString()} (waiting for finality)`);
           setExtrinsicHash(tx.hash.toHex());
@@ -119,6 +122,31 @@ export default function AnchorPage() {
         }
       }
     );
+  }
+
+  function downloadReceipt() {
+    if (!extrinsicHash || !finalizedBlock || !wallet) return;
+    const receipt = {
+      type: "w3bstitch.tdr",
+      chain: network,
+      extrinsicHash,
+      finalizedBlock,
+      account: wallet.address,
+      payload: {
+        v: "w3bstitch.anchor",
+        alg: "sha256",
+        hash: hashHex,
+        url: url || "(local file)",
+        ts: new Date().toISOString(),
+      },
+    };
+    const blob = new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = `tdr-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(href);
   }
 
   const subscanBase =
@@ -133,7 +161,7 @@ export default function AnchorPage() {
 
       <label style={{ display: "block", marginBottom: 8 }}>
         Network:&nbsp;
-        <select value={network} onChange={(e) => setNetwork(e.target.value as any)}>
+        <select value={network} onChange={(e) => setNetwork(e.target.value as "westend" | "polkadot")}>
           <option value="westend">Westend (testnet)</option>
           <option value="polkadot">Polkadot (mainnet)</option>
         </select>
@@ -176,28 +204,20 @@ export default function AnchorPage() {
       </div>
 
       <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-        <p>
-          <b>Status:</b> {status || "—"}
-        </p>
-        <p>
-          <b>Bytes:</b> {bytes ?? "—"}
-        </p>
-        <p>
-          <b>SHA-256:</b> {hashHex || "—"}
-        </p>
-        <p>
-          <b>Extrinsic Hash:</b> {extrinsicHash || "—"}
-        </p>
-        <p>
-          <b>Finalized Block:</b> {finalizedBlock || "—"}
-        </p>
+        <p><b>Status:</b> {status || "—"}</p>
+        <p><b>Bytes:</b> {bytes ?? "—"}</p>
+        <p><b>SHA-256:</b> {hashHex || "—"}</p>
+        <p><b>Extrinsic Hash:</b> {extrinsicHash || "—"}</p>
+        <p><b>Finalized Block:</b> {finalizedBlock || "—"}</p>
         {extrinsicHash && (
           <p>
-            Verify:{" "}
-            <a href={subscanBase + extrinsicHash} target="_blank">
-              Subscan link
-            </a>
+            Verify: <a href={subscanBase + extrinsicHash} target="_blank">Subscan link</a>
           </p>
+        )}
+        {extrinsicHash && finalizedBlock && wallet && (
+          <button onClick={downloadReceipt} style={{ marginTop: 8 }}>
+            Download Receipt JSON
+          </button>
         )}
       </div>
     </div>
