@@ -4,10 +4,11 @@ import React, { useMemo, useRef, useState } from "react";
 import type { DispatchError } from "@polkadot/types/interfaces";
 
 /**
- * W3b Stitch — Anchor Media to Polkadot (Westend/Mainnet)
- * - Client-only (safe for Vercel): all chain libs are dynamically imported at runtime.
- * - Hashes a URL or local file, signs via Polkadot.js extension, posts system.remarkWithEvent.
- * - Shows extrinsic + finalized block and lets you download a TDR receipt JSON.
+ * W3b Stitch — Anchor Media (Westend / Polkadot)
+ * - Client-only (safe for Vercel)
+ * - Dynamic imports for chain libs
+ * - Robust tx flow: Broadcast → InBlock → Finalized (with nonce:-1)
+ * - Receipt download (JSON)
  */
 
 export default function AnchorPage() {
@@ -19,13 +20,18 @@ export default function AnchorPage() {
   const [status, setStatus] = useState("");
   const [extrinsicHash, setExtrinsicHash] = useState("");
   const [finalizedBlock, setFinalizedBlock] = useState("");
+
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const wsEndpoint = useMemo(
-    () => (network === "westend" ? "wss://westend-rpc.polkadot.io" : "wss://rpc.polkadot.io"),
+    () =>
+      network === "westend"
+        ? "wss://westend-rpc.polkadot.io"
+        : "wss://rpc.polkadot.io",
     [network]
   );
 
+  // ---------------- utils ----------------
   function toHexFromUtf8(s: string) {
     const bytes = new TextEncoder().encode(s);
     let hex = "0x";
@@ -39,6 +45,11 @@ export default function AnchorPage() {
     return Array.from(arr).map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
+  function short(addr: string) {
+    return addr.slice(0, 6) + "…" + addr.slice(-6);
+  }
+
+  // --------------- hashing ----------------
   async function hashFromUrl(u: string) {
     setStatus("Downloading media…");
     const res = await fetch(u, { mode: "cors" });
@@ -60,77 +71,126 @@ export default function AnchorPage() {
     setStatus("Hash ready.");
   }
 
+  // --------------- wallet ----------------
   async function connectWallet() {
     setStatus("Connecting wallet…");
     const { web3Enable, web3Accounts } = await import("@polkadot/extension-dapp");
     await web3Enable("W3b Stitch");
     const accounts = await web3Accounts();
-    if (!accounts.length) throw new Error("No Polkadot.js extension accounts found.");
+    if (!accounts.length) throw new Error("No Polkadot/SubWallet accounts found.");
     setWallet({ address: accounts[0].address });
     setStatus(`Wallet connected: ${short(accounts[0].address)}`);
   }
 
-  function short(addr: string) {
-    return addr.slice(0, 6) + "…" + addr.slice(-6);
-  }
-
+  // --------------- anchor ----------------
   async function doAnchor() {
-    if (!hashHex) throw new Error("No hash to anchor.");
-    if (!wallet) throw new Error("Connect wallet first.");
+    try {
+      if (!hashHex) throw new Error("No hash to anchor.");
+      if (!wallet) throw new Error("Connect wallet first.");
 
-    const payload = {
-      v: "w3bstitch.anchor",
-      alg: "sha256",
-      hash: hashHex,
-      url: url || "(local file)",
-      ts: new Date().toISOString(),
-    };
+      setStatus("Connecting to chain…");
+      const [{ ApiPromise, WsProvider }, { web3FromAddress }] = await Promise.all([
+        import("@polkadot/api"),
+        import("@polkadot/extension-dapp"),
+      ]);
 
-    setStatus("Connecting to chain…");
-    const { ApiPromise, WsProvider } = await import("@polkadot/api");
-    const { web3FromAddress } = await import("@polkadot/extension-dapp");
+      // Always use a full RPC (avoid light:// to prevent metadata issues)
+      const provider = new WsProvider(wsEndpoint);
+      const api = await ApiPromise.create({ provider });
 
-    const api = await ApiPromise.create({ provider: new WsProvider(wsEndpoint) });
-    const injector = await web3FromAddress(wallet.address);
+      // Basic health + balance checks
+      const [health, accountInfo] = await Promise.all([
+        api.rpc.system.health(),
+        api.query.system.account(wallet.address),
+      ]);
 
-    const hexPayload = toHexFromUtf8(JSON.stringify(payload));
-    const tx = api.tx.system.remarkWithEvent(hexPayload);
+      if (!health.isSyncing.isFalse) {
+        setStatus("RPC is syncing; try again in a minute or switch RPC.");
+        return;
+      }
 
-    setStatus("Submitting transaction… (waiting for inclusion)");
-    const unsub = await tx.signAndSend(
-      wallet.address,
-      { signer: injector.signer },
-      ({ status: st, dispatchError }) => {
-        if (dispatchError) {
-          const err = dispatchError as DispatchError;
-          if (err.isModule) {
-            const decoded = api.registry.findMetaError(err.asModule);
-            setStatus(`Error: ${decoded.section}.${decoded.name} — ${decoded.docs.join(" ")}`);
-          } else {
-            setStatus(`Error: ${err.toString()}`);
+      // @ts-expect-error runtime type
+      const free = BigInt(accountInfo.data.free.toString());
+      const MIN = 1_000_000_000n; // ~0.01 WND
+      if (network === "westend" && free < MIN) {
+        setStatus(`Not enough WND to pay fees. Free balance: ${free.toString()}`);
+        return;
+      }
+
+      const injector = await web3FromAddress(wallet.address);
+
+      const payload = {
+        v: "w3bstitch.anchor",
+        alg: "sha256",
+        hash: hashHex,
+        url: url || "(local file)",
+        ts: new Date().toISOString(),
+      };
+      const hexPayload = toHexFromUtf8(JSON.stringify(payload));
+
+      const tx = api.tx.system.remarkWithEvent(hexPayload);
+      setExtrinsicHash(tx.hash.toHex());
+
+      setStatus("Submitting transaction… (broadcasting)");
+      const unsub = await tx.signAndSend(
+        wallet.address,
+        { signer: injector.signer, nonce: -1 },
+        ({ status: st, dispatchError, events }) => {
+          if (dispatchError) {
+            const err = dispatchError as DispatchError;
+            if (err.isModule) {
+              const decoded = api.registry.findMetaError(err.asModule);
+              setStatus(
+                `On-chain error: ${decoded.section}.${decoded.name} — ${decoded.docs.join(" ")}`
+              );
+            } else {
+              setStatus(`On-chain error: ${err.toString()}`);
+            }
+            unsub();
+            return;
+          }
+
+          if (st.isBroadcast) setStatus("📡 Broadcasted… waiting for inclusion");
+          if (st.isInBlock) setStatus(`✅ Included in block: ${st.asInBlock.toString()}`);
+          if (st.isFinalized) {
+            const blockHash = st.asFinalized.toString();
+            setFinalizedBlock(blockHash);
+
+            // Check for failure just in case
+            const failed = events.some(
+              (e: { event: { section: string; method: string } }) =>
+                e.event.section === "system" && e.event.method === "ExtrinsicFailed"
+            );
+            if (failed) {
+              setStatus("❌ Included but failed — see Subscan for details.");
+            } else {
+              setStatus(`🎉 Finalized in block ${blockHash}`);
+            }
+            unsub();
           }
         }
+      );
 
-        if (st.isInBlock) {
-          setStatus(`In block: ${st.asInBlock.toString()} (waiting for finality)`);
-          setExtrinsicHash(tx.hash.toHex());
+      // Last resort hint if node never includes it
+      setTimeout(() => {
+        if (!finalizedBlock) {
+          setStatus("Still waiting for inclusion… try again or switch RPC.");
         }
-        if (st.isFinalized) {
-          setFinalizedBlock(st.asFinalized.toHex());
-          setStatus("✅ Finalized on-chain.");
-          unsub();
-        }
-      }
-    );
+      }, 90_000);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(`Failed: ${msg}`);
+    }
   }
 
+  // --------------- receipt download ---------------
   function downloadReceipt() {
-    if (!extrinsicHash || !finalizedBlock || !wallet) return;
+    if (!extrinsicHash || !wallet) return;
     const receipt = {
       type: "w3bstitch.tdr",
       chain: network,
       extrinsicHash,
-      finalizedBlock,
+      finalizedBlock: finalizedBlock || "(pending)",
       account: wallet.address,
       payload: {
         v: "w3bstitch.anchor",
@@ -140,7 +200,9 @@ export default function AnchorPage() {
         ts: new Date().toISOString(),
       },
     };
-    const blob = new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(receipt, null, 2)], {
+      type: "application/json",
+    });
     const href = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = href;
@@ -149,6 +211,7 @@ export default function AnchorPage() {
     URL.revokeObjectURL(href);
   }
 
+  // --------------- UI ---------------
   const subscanBase =
     network === "westend"
       ? "https://westend.subscan.io/extrinsic/"
@@ -157,11 +220,16 @@ export default function AnchorPage() {
   return (
     <div style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
       <h1>W3b Stitch — Anchor Media to Polkadot</h1>
-      <p>Hash a file or URL, then anchor via <code>system.remarkWithEvent</code>.</p>
+      <p>
+        Hash a file or URL, then anchor via <code>system.remarkWithEvent</code>.
+      </p>
 
       <label style={{ display: "block", marginBottom: 8 }}>
         Network:&nbsp;
-        <select value={network} onChange={(e) => setNetwork(e.target.value as "westend" | "polkadot")}>
+        <select
+          value={network}
+          onChange={(e) => setNetwork(e.target.value as "westend" | "polkadot")}
+        >
           <option value="westend">Westend (testnet)</option>
           <option value="polkadot">Polkadot (mainnet)</option>
         </select>
@@ -186,7 +254,9 @@ export default function AnchorPage() {
           />
           <button
             onClick={() =>
-              url ? hashFromUrl(url).catch((e) => setStatus(e.message)) : setStatus("Enter a URL or pick a file first")
+              url
+                ? hashFromUrl(url).catch((e) => setStatus(e.message))
+                : setStatus("Enter a URL or pick a file first")
             }
           >
             Hash URL
@@ -214,7 +284,7 @@ export default function AnchorPage() {
             Verify: <a href={subscanBase + extrinsicHash} target="_blank">Subscan link</a>
           </p>
         )}
-        {extrinsicHash && finalizedBlock && wallet && (
+        {extrinsicHash && (
           <button onClick={downloadReceipt} style={{ marginTop: 8 }}>
             Download Receipt JSON
           </button>
