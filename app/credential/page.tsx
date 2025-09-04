@@ -1,8 +1,8 @@
-"use client";
+ï»¿"use client";
 
 import React, { useState } from "react";
 import QRCode from "qrcode";
-import { fileToSha256Hex } from "@\/lib\/hash";
+import { fileToSha256Hex } from "@/lib/hash";
 
 export default function CredentialPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -72,7 +72,7 @@ export default function CredentialPage() {
         disabled={!file || !hash || loading}
         className="rounded-xl px-4 py-2 shadow border text-sm disabled:opacity-50"
       >
-        {loading ? "Anchoring…" : "Anchor + Generate QR"}
+        {loading ? "Anchoringâ€¦" : "Anchor + Generate QR"}
       </button>
 
       {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -82,7 +82,7 @@ export default function CredentialPage() {
           <h2 className="text-lg font-semibold">QR Code (scan to verify)</h2>
           <img src={qr} alt="Verification QR" className="border rounded-xl p-2" />
           <p className="text-sm">
-            Or open: <a className="underline" href={`/verify?hash=${encodeURIComponent(hash)}`}>/verify?hash=…</a>
+            Or open: <a className="underline" href={`/verify?hash=${encodeURIComponent(hash)}`}>/verify?hash=â€¦</a>
           </p>
         </section>
       )}
