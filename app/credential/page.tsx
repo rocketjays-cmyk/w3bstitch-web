@@ -1,7 +1,6 @@
-﻿""use client";
+﻿"use client";
 
 import React, { useState } from "react";
-import QRCode from "qrcode";
 import { fileToSha256Hex } from "../../lib/hash";
 
 export default function CredentialPage() {
@@ -42,6 +41,8 @@ export default function CredentialPage() {
       }
       setReceipt(data?.receipt ?? {});
 
+      // dynamic import avoids SSR issues
+      const QRCode = (await import("qrcode")).default;
       const verifyUrl = `${window.location.origin}/verify?hash=${encodeURIComponent(hash)}`;
       const png = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 280 });
       setQr(png);
@@ -97,5 +98,3 @@ export default function CredentialPage() {
     </main>
   );
 }
-
-
