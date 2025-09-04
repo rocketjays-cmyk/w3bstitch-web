@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useMemo, useState } from "react";
-import { fileToSha256Hex } from "@/lib/hash";
+import { fileToSha256Hex } from "../../lib/hash";
 
 function useQueryHash() {
   const [h, setH] = useState<string>("");
@@ -66,3 +66,4 @@ export default function VerifyPage() {
     </main>
   );
 }
+
