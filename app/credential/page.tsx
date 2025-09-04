@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import QRCode from "qrcode";
-import { fileToSha256Hex } from "@/src/lib/hash";
+import { fileToSha256Hex } from "@\/lib\/hash";
 
 export default function CredentialPage() {
   const [file, setFile] = useState<File | null>(null);
