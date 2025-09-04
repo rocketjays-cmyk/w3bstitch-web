@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useState } from "react";
-import { fileToSha256Hex } from "../../lib/hash";
+import { fileToSha256Hex } from "../../../lib/hash";
 
 export default function CredentialPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -104,3 +104,4 @@ export default function CredentialPage() {
     </main>
   );
 }
+
