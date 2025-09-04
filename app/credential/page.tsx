@@ -1,4 +1,4 @@
-﻿"use client";
+﻿""use client";
 
 import React, { useState } from "react";
 import QRCode from "qrcode";
@@ -42,7 +42,6 @@ export default function CredentialPage() {
       }
       setReceipt(data?.receipt ?? {});
 
-      // Build a verify URL with the hash embedded
       const verifyUrl = `${window.location.origin}/verify?hash=${encodeURIComponent(hash)}`;
       const png = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 280 });
       setQr(png);
@@ -55,7 +54,7 @@ export default function CredentialPage() {
 
   return (
     <main className="mx-auto max-w-xl p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Credential ? QR Verification</h1>
+      <h1 className="text-2xl font-bold">Credential → QR Verification</h1>
 
       <div className="space-y-2">
         <label className="block text-sm font-medium">Upload credential (PDF/Image)</label>
@@ -98,3 +97,4 @@ export default function CredentialPage() {
     </main>
   );
 }
+
