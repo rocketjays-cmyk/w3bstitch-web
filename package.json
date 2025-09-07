@@ -26,6 +26,7 @@
     "prettier": "^3.3.3",
     "typescript": "^5.9.2",
     "@types/qrcode": "^1.5.5",
-    "tailwindcss": "^4.1.12"
+    "tailwindcss": "^4.1.12",
+    "@types/react": "^19.1.12"
   }
 }
