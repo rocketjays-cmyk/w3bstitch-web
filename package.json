@@ -20,10 +20,12 @@
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.32",
     "prettier": "^3.3.3",
     "typescript": "^5.9.2",
-    "@types/qrcode": "^1.5.5"
+    "@types/qrcode": "^1.5.5",
+    "tailwindcss": "^4.1.12"
   }
 }
