@@ -16,13 +16,11 @@ function useQueryHash() {
 
 export default function VerifyPage() {
   const qrHash = useQueryHash();
-  const [file, setFile] = useState<File | null>(null);
   const [calcHash, setCalcHash] = useState<string>("");
   const [status, setStatus] = useState<"idle" | "match" | "nomatch">("idle");
 
   async function onSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
-    setFile(f || null);
     setCalcHash("");
     setStatus("idle");
     if (!f) return;
