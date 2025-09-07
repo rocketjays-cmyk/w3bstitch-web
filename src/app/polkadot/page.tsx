@@ -48,7 +48,7 @@ export default function PolkadotConnectivity() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [info.endpoint]);
 
   return (
     <main className="mx-auto max-w-xl p-6 space-y-4">

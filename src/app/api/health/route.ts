@@ -1,57 +1,12 @@
-// app or src/app /api/anchor/route.ts
-import { NextRequest } from 'next/server';
-import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
-
-export const runtime = 'nodejs'; // needed for WS in serverless
-
-export async function POST(req: NextRequest) {
-  try {
-    const { hash } = await req.json();
-    if (!hash || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
-      return new Response(JSON.stringify({ error: 'Invalid hash, must be 0x + 64 hex chars' }), { status: 400 });
-    }
-
-    const provider = new WsProvider(process.env.WESTEND_WSS || 'wss://westend-rpc.polkadot.io');
-    const api = await ApiPromise.create({ provider });
-
-    const keyring = new Keyring({ type: 'sr25519' });
-    const signer = keyring.addFromUri(process.env.ANCHOR_SIGNER_URI || '//Alice');
-
-    const tx = api.tx.system.remark(hash);
-
-    return new Promise<Response>(async (resolve, reject) => {
-      try {
-        const unsub = await tx.signAndSend(signer, ({ status, txHash, dispatchError }) => {
-          if (dispatchError) {
-            unsub?.();
-            reject(new Response(JSON.stringify({ error: dispatchError.toString() }), { status: 500 }));
-          }
-          if (status.isInBlock || status.isFinalized) {
-            unsub?.();
-            resolve(new Response(JSON.stringify({
-              ok: true,
-              txHash: txHash.toHex(),
-              explorer: `https://westend.subscan.io/extrinsic/${txHash.toHex()}`
-            }), { status: 200, headers: { 'content-type': 'application/json' } }));
-          }
-        });
-      } catch (err: any) {
-        reject(new Response(JSON.stringify({ error: err.message || String(err) }), { status: 500 }));
-      }
-    }).finally(async () => {
-      await api.disconnect();
-    });
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message || String(e) }), { status: 500 });
-  }
-}
-// app/api/health/route.ts
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return new Response(JSON.stringify({ ok: true, ts: new Date().toISOString() }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ ok: true, ts: new Date().toISOString() }),
+    {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }
+  );
 }
