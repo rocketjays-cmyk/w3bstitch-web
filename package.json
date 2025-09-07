@@ -11,16 +11,16 @@
     "fmt": "prettier --write ."
   },
   "dependencies": {
+    "@polkadot/api": "^11.1.1",
+    "@polkadot/util-crypto": "^11.1.1",
     "next": "^14.2.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@polkadot/api": "^12.6.1",
-    "@polkadot/util-crypto": "^12.6.1"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.2",
-    "eslint": "^9.10.0",
-    "eslint-config-next": "^14.2.0",
-    "prettier": "^3.3.3"
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.32",
+    "prettier": "^3.3.3",
+    "typescript": "^5.9.2"
   }
 }
