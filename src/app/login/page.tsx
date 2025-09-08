@@ -89,7 +89,10 @@ export default function LoginPage() {
           throw new Error("Failed to retrieve public key");
         }
         const { Connection } = await import("@solana/web3.js");
-        const connection = new Connection("https://api.mainnet-beta.solana.com");
+        const rpcUrl =
+          process.env.NEXT_PUBLIC_SOLANA_RPC ||
+          "https://api.mainnet-beta.solana.com";
+        const connection = new Connection(rpcUrl);
         const [slot, versionInfo] = await Promise.all([
           connection.getSlot(),
           connection.getVersion(),
