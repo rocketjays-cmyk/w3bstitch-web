@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 
 export default function SolanaPage() {
   const [address, setAddress] = useState<string | null>(null);
@@ -36,6 +37,8 @@ export default function SolanaPage() {
       const resp = await provider.connect();
       const pubkey = (resp?.publicKey || provider.publicKey)?.toString();
       if (pubkey) {
+        const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
+        await connection.getBalance(new PublicKey(pubkey));
         setAddress(pubkey);
         localStorage.setItem("solanaAddress", pubkey);
       }
