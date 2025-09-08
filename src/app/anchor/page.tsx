@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { DispatchError } from "@polkadot/types/interfaces";
 import type { AccountInfo } from "@polkadot/types/interfaces/system";
 
@@ -21,6 +21,25 @@ export default function AnchorPage() {
   const [status, setStatus] = useState("");
   const [extrinsicHash, setExtrinsicHash] = useState("");
   const [finalizedBlock, setFinalizedBlock] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("polkadotAddress");
+    if (!saved) return;
+    (async () => {
+      try {
+        const { web3Enable, web3Accounts } = await import("@polkadot/extension-dapp");
+        await web3Enable("W3b Stitch");
+        const accounts = await web3Accounts();
+        const account = accounts.find((a) => a.address === saved) || accounts[0];
+        if (account) {
+          setWallet({ address: account.address });
+          setStatus(`Wallet connected: ${short(account.address)}`);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -77,7 +96,14 @@ export default function AnchorPage() {
     const accounts = await web3Accounts();
     if (!accounts.length) throw new Error("No Polkadot/SubWallet accounts found.");
     setWallet({ address: accounts[0].address });
+    localStorage.setItem("polkadotAddress", accounts[0].address);
     setStatus(`Wallet connected: ${short(accounts[0].address)}`);
+  }
+
+  function logout() {
+    localStorage.removeItem("polkadotAddress");
+    setWallet(null);
+    setStatus("");
   }
 
   // ---------- anchor ----------
@@ -250,9 +276,11 @@ export default function AnchorPage() {
       </div>
 
       <div style={{ margin: "8px 0" }}>
-        <button onClick={connectWallet} disabled={!!wallet}>
-          Connect Wallet
-        </button>
+        {wallet ? (
+          <button onClick={logout}>Logout</button>
+        ) : (
+          <button onClick={connectWallet}>Connect Wallet</button>
+        )}
         <button onClick={doAnchor} disabled={!wallet || !hashHex} style={{ marginLeft: 8 }}>
           Anchor to Chain
         </button>
