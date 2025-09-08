@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <main className="relative min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white flex items-center justify-center">
       <div className="absolute top-4 right-4">
-        <ChainIndicator />
+        <ChainIndicator did="did:polkadot:westend" />
       </div>
       <div className="text-center px-6">
         <h1 className="text-5xl font-extrabold mb-6 tracking-tight">

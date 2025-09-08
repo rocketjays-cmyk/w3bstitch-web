@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { chainFromDid } from "@/lib/did";
 
-export default function ChainIndicator() {
+export default function ChainIndicator({ did }: { did: string }) {
   const [chain, setChain] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -10,12 +11,8 @@ export default function ChainIndicator() {
     let mounted = true;
     (async () => {
       try {
-        const { ApiPromise, WsProvider } = await import("@polkadot/api");
-        const provider = new WsProvider("wss://westend-rpc.polkadot.io");
-        const api = await ApiPromise.create({ provider });
-        const chainName = await api.rpc.system.chain();
-        if (mounted) setChain(chainName.toString());
-        await api.disconnect();
+        const chainName = await chainFromDid(did);
+        if (mounted) setChain(chainName);
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : String(e));
       }
@@ -23,13 +20,15 @@ export default function ChainIndicator() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [did]);
 
   if (error) {
     return <span className="text-sm text-red-500">Not connected</span>;
   }
 
   return (
-    <span className="text-sm">{chain ? `Connected: ${chain}` : "Connecting..."}</span>
+    <span className="text-sm">
+      {chain ? `Connected: ${chain}` : "Connecting..."}
+    </span>
   );
 }
