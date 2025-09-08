@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 
 interface SolanaProvider {
-  connect: () => Promise<{ publicKey: { toString(): string } }>;
+  connect: () => Promise<{ publicKey: { toString(): string } } | void>;
+  publicKey?: { toString(): string };
 }
 
 type Chain = "westend" | "solana";
@@ -71,16 +72,20 @@ export default function LoginPage() {
           throw new Error("No Solana wallet found");
         }
         const connection = new Connection("https://api.devnet.solana.com");
-        const [slot, version, resp] = await Promise.all([
+        const [slot, version] = await Promise.all([
           connection.getSlot(),
           connection.getVersion(),
-          provider.connect(),
         ]);
+        await provider.connect();
+        const pubkey = provider.publicKey?.toString();
+        if (!pubkey) {
+          throw new Error("Failed to retrieve public key");
+        }
         setConnInfo({
           slot,
           version: version["solana-core"],
         });
-        setAccounts([resp.publicKey.toString()]);
+        setAccounts([pubkey]);
       }
       setStatus("idle");
     } catch (e) {
