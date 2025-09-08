@@ -3,6 +3,18 @@
 import { useEffect, useState } from "react";
 import { useDid } from "@/components/DidProvider";
 
+interface SolflareWallet {
+  isSolflare?: boolean;
+  connect: () => Promise<{ publicKey: { toString(): string } } | void>;
+  disconnect?: () => Promise<void> | void;
+  publicKey?: { toString(): string };
+}
+
+interface SolflareWindow extends Window {
+  solflare?: SolflareWallet;
+  solana?: SolflareWallet;
+}
+
 type Chain = "westend" | "solana";
 
 type ConnInfo = {
@@ -63,7 +75,31 @@ export default function LoginPage() {
         setDid(`did:polkadot:westend:${addresses[0]}`);
         await api.disconnect();
       } else {
-        throw new Error("Solana support not available");
+        const provider =
+          (window as SolflareWindow).solflare ??
+          (window as SolflareWindow).solana;
+        if (!provider) {
+          throw new Error("No Solflare wallet found");
+        }
+        if (!provider.publicKey) {
+          await provider.connect();
+        }
+        const pubkey = provider.publicKey?.toString();
+        if (!pubkey) {
+          throw new Error("Failed to retrieve public key");
+        }
+        const { Connection } = await import("@solana/web3.js");
+        const connection = new Connection("https://api.mainnet-beta.solana.com");
+        const [slot, versionInfo] = await Promise.all([
+          connection.getSlot(),
+          connection.getVersion(),
+        ]);
+        setConnInfo({
+          slot,
+          version: versionInfo["solana-core"] ?? "",
+        });
+        setAccounts([pubkey]);
+        setDid(`did:solana:${pubkey}`);
       }
       setStatus("idle");
     } catch (e) {

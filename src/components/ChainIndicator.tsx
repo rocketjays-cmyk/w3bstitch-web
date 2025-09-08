@@ -4,6 +4,9 @@ import { useDid } from "./DidProvider";
 
 function networkFromDid(did: string): string {
   const parts = did.split(":");
+  if (parts[1] === "solana") {
+    return "solana";
+  }
   return parts[2] || "";
 }
 
