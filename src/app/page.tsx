@@ -8,8 +8,7 @@ export default function Home() {
       </div>
       <div className="text-center px-6">
         <h1 className="text-5xl font-extrabold mb-6 tracking-tight">
-          W3b Stitch —{" "}
-          <span className="text-indigo-400">Proof of Authenticity</span>
+          W3b Stitch- Trust Engine
         </h1>
 
         <p className="mb-10 text-lg text-gray-300 max-w-2xl mx-auto">
@@ -20,28 +19,16 @@ export default function Home() {
 
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <a
-            href="/polkadot"
+            href="/login"
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg transition"
           >
-            🔗 Polkadot Connectivity
-          </a>
-          <a
-            href="/solana"
-            className="px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl shadow-lg transition"
-          >
-            🟣 Solana Connectivity
+            🔐 Chain Picker Login
           </a>
           <a
             href="/verify"
             className="px-6 py-3 bg-white hover:bg-gray-200 text-black font-semibold rounded-xl shadow-lg transition"
           >
             ✅ Try Verification
-          </a>
-          <a
-            href="/login"
-            className="px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl shadow-lg transition"
-          >
-            🔐 DID Login
           </a>
           <a
             href="/credential"
