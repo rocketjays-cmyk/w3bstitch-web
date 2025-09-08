@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface SolanaProvider {
-  connect: () => Promise<{ publicKey: { toString(): string } }>;
-}
+import { getSolanaProvider } from "@/lib/solana-provider";
 
 type Chain = "westend" | "solana";
 
@@ -63,10 +60,7 @@ export default function LoginPage() {
         await api.disconnect();
       } else {
         const { Connection } = await import("@solana/web3.js");
-        const provider =
-          (window as unknown as { solana?: SolanaProvider }).solana ??
-          (window as unknown as { phantom?: { solana?: SolanaProvider } })
-            .phantom?.solana;
+        const provider = getSolanaProvider();
         if (!provider) {
           throw new Error("No Solana wallet found");
         }
