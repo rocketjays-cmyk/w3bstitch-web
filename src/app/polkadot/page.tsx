@@ -11,7 +11,7 @@ export default function PolkadotConnectivity() {
     endpoint: string;
     error?: string;
   }>({
-    endpoint: "wss://westend-rpc.polkadot.io",
+    endpoint: "wss://rpc.polkadot.io",
   });
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function PolkadotConnectivity() {
 
   return (
     <main className="mx-auto max-w-xl p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Polkadot Connectivity (Westend)</h1>
+      <h1 className="text-2xl font-bold">Polkadot Connectivity (Mainnet)</h1>
       <p className="text-sm text-gray-400">
         Endpoint: <code>{info.endpoint}</code>
       </p>
