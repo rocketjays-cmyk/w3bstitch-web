@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getSolanaProvider } from "@/lib/solana-provider";
 
 export default function SolanaPage() {
   const [address, setAddress] = useState<string | null>(null);
@@ -11,26 +12,12 @@ export default function SolanaPage() {
     if (saved) setAddress(saved);
   }, []);
 
-  interface SolflareWallet {
-    isSolflare?: boolean;
-    connect: () => Promise<{ publicKey: { toString(): string } } | void>;
-    disconnect?: () => Promise<void> | void;
-    publicKey?: { toString(): string };
-  }
-
-  interface SolflareWindow extends Window {
-    solflare?: SolflareWallet;
-    solana?: SolflareWallet;
-  }
-
   async function connect() {
     try {
       setError("");
-      const provider =
-        (window as SolflareWindow).solflare ??
-        (window as SolflareWindow).solana;
+      const provider = getSolanaProvider();
       if (!provider) {
-        setError("No Solflare wallet found.");
+        setError("No Solana wallet found.");
         return;
       }
       if (!provider.publicKey) {
@@ -48,8 +35,7 @@ export default function SolanaPage() {
   }
 
   function logout() {
-    const provider =
-      (window as SolflareWindow).solflare ?? (window as SolflareWindow).solana;
+    const provider = getSolanaProvider();
     try {
       provider?.disconnect?.();
     } catch {
@@ -79,7 +65,7 @@ export default function SolanaPage() {
           onClick={connect}
           className="rounded-xl px-4 py-2 shadow border text-sm"
         >
-          Connect Solflare
+          Connect Solana Wallet
         </button>
       )}
       {error && <p className="text-red-600 text-sm">{error}</p>}
