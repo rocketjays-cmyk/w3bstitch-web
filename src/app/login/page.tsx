@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Connection } from "@/lib/solana";
 
 interface SolanaProvider {
   connect: () => Promise<{ publicKey: { toString(): string } }>;
@@ -62,7 +63,6 @@ export default function LoginPage() {
         setAccounts(allAccounts.map((a) => a.address));
         await api.disconnect();
       } else {
-        const { Connection } = await import("@solana/web3.js");
         const provider =
           (window as unknown as { solana?: SolanaProvider }).solana ??
           (window as unknown as { phantom?: { solana?: SolanaProvider } })
