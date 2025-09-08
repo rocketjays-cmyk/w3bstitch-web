@@ -18,6 +18,7 @@ function useQueryParam(key: string) {
 export default function VerifyPage() {
   const qrHash = useQueryParam("hash");
   const qrDid = useQueryParam("did");
+  const qrTx = useQueryParam("tx");
   const { did } = useDid();
   const [calcHash, setCalcHash] = useState<string>("");
   const [status, setStatus] = useState<"idle" | "match" | "nomatch">("idle");
@@ -60,6 +61,20 @@ export default function VerifyPage() {
           {qrHash || "(none in URL)"}
         </p>
         <p className="text-sm">DID: {qrDid || "(none)"}</p>
+        <p className="text-sm">
+          Tx:{" "}
+          {qrTx ? (
+            <a
+              className="underline"
+              href={`https://westend.subscan.io/extrinsic/${qrTx}`}
+              target="_blank"
+            >
+              {qrTx}
+            </a>
+          ) : (
+            "(none)"
+          )}
+        </p>
         {did && qrDid && did !== qrDid && (
           <p className="text-red-600 text-xs">Logged-in DID mismatch</p>
         )}

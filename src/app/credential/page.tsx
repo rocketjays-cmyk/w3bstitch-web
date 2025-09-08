@@ -7,6 +7,7 @@ import { useDid } from "@/components/DidProvider";
 interface AnchorReceipt {
   ok: boolean;
   txHash: string;
+  blockHash: string;
   explorer?: string;
 }
 
@@ -85,37 +86,40 @@ export default function CredentialPage() {
       };
       const hexPayload = toHexFromUtf8(JSON.stringify(payload));
       const tx = api.tx.system.remarkWithEvent(hexPayload);
+      const txh = tx.hash.toHex();
 
       setStatus("Awaiting wallet confirmation…");
       await new Promise<void>(async (resolve, reject) => {
         const unsub = await tx.signAndSend(
           address,
           { signer: injector.signer, nonce: -1 },
-          async ({ status, dispatchError, txHash }) => {
+          async ({ status, dispatchError }) => {
             if (dispatchError) {
               unsub();
               reject(new Error(dispatchError.toString()));
               return;
             }
             if (status.isInBlock) {
-              setStatus("Included in block");
-              const txh = txHash.toHex();
+              setStatus(`Included in block ${status.asInBlock.toHex()}`);
+            }
+            if (status.isFinalized) {
+              const blockHash = status.asFinalized.toHex();
+              setStatus("Finalized");
               setReceipt({
                 ok: true,
                 txHash: txh,
+                blockHash,
                 explorer: `https://westend.subscan.io/extrinsic/${txh}`,
               });
-
               const QRCode = (await import("qrcode")).default;
-              const verifyUrl = `${window.location.origin}/verify?did=${encodeURIComponent(did)}&hash=${encodeURIComponent(hash)}`;
+              const verifyUrl = `${window.location.origin}/verify?did=${encodeURIComponent(
+                did,
+              )}&hash=${encodeURIComponent(hash)}&tx=${txh}`;
               const png = await QRCode.toDataURL(verifyUrl, {
                 margin: 1,
                 width: 280,
               });
               setQr(png);
-            }
-            if (status.isFinalized) {
-              setStatus("Finalized");
               unsub();
               resolve();
             }
@@ -172,7 +176,9 @@ export default function CredentialPage() {
             Or open:{" "}
             <a
               className="underline"
-              href={`/verify?did=${encodeURIComponent(did ?? "")}&hash=${encodeURIComponent(hash)}`}
+              href={`/verify?did=${encodeURIComponent(did ?? "")}&hash=${encodeURIComponent(hash)}&tx=${encodeURIComponent(
+                receipt?.txHash ?? "",
+              )}`}
             >
               /verify?hash=…
             </a>
