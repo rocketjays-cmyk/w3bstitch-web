@@ -63,8 +63,10 @@ export default function LoginPage() {
         await api.disconnect();
       } else {
         const { Connection } = await import("@solana/web3.js");
-        const provider = (window as unknown as { solana?: SolanaProvider })
-          .solana;
+        const provider =
+          (window as unknown as { solana?: SolanaProvider }).solana ??
+          (window as unknown as { phantom?: { solana?: SolanaProvider } })
+            .phantom?.solana;
         if (!provider) {
           throw new Error("No Solana wallet found");
         }
