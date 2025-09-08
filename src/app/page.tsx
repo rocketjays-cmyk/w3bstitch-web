@@ -24,7 +24,10 @@ export default function Home() {
           >
             🔐 Chain Picker Login
           </a>
-
+          <a
+            href="/verify"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg transition"
+          >
             ✅ Try Verification
           </a>
           <a
