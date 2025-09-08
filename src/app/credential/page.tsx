@@ -3,11 +3,17 @@
 import React, { useState } from "react";
 import { fileToSha256Hex } from "../../../lib/hash";
 
+interface AnchorReceipt {
+  ok: boolean;
+  txHash: string;
+  explorer?: string;
+}
+
 export default function CredentialPage() {
   const [file, setFile] = useState<File | null>(null);
   const [hash, setHash] = useState<string>("");
   const [qr, setQr] = useState<string>("");
-  const [receipt, setReceipt] = useState<Record<string, unknown> | null>(null);
+  const [receipt, setReceipt] = useState<AnchorReceipt | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
@@ -35,7 +41,7 @@ export default function CredentialPage() {
       });
       const data = (await r.json()) as {
         ok?: boolean;
-        receipt?: Record<string, unknown>;
+        receipt?: AnchorReceipt;
         error?: string;
       };
       if (!r.ok || !data?.ok) {
@@ -43,7 +49,7 @@ export default function CredentialPage() {
         setLoading(false);
         return;
       }
-      setReceipt(data.receipt ?? {});
+      setReceipt(data.receipt ?? null);
 
       // dynamic import avoids SSR hiccups
       const QRCode = (await import("qrcode")).default;
@@ -96,6 +102,21 @@ export default function CredentialPage() {
       {receipt && (
         <section className="space-y-2">
           <h3 className="font-semibold">Receipt</h3>
+          <p className="text-xs break-all">
+            Tx: <span className="font-mono">{receipt.txHash}</span>
+            {receipt.explorer && (
+              <>
+                {" "}
+                <a
+                  href={receipt.explorer}
+                  className="underline"
+                  target="_blank"
+                >
+                  Explorer
+                </a>
+              </>
+            )}
+          </p>
           <pre className="text-xs bg-gray-100 p-3 rounded-xl overflow-auto">
 {JSON.stringify(receipt, null, 2)}
           </pre>
