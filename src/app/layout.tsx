@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import BackButton from "../components/BackButton";
+import { DidProvider } from "../components/DidProvider";
 
 export const metadata: Metadata = {
   title: "W3b Stitch- Trust Engine",
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <BackButton />
-        {children}
+        <DidProvider>
+          <BackButton />
+          {children}
+        </DidProvider>
       </body>
     </html>
   );

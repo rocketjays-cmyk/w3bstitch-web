@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { fileToSha256Hex } from "../../../lib/hash";
+import { useDid } from "@/components/DidProvider";
 
 interface AnchorReceipt {
   ok: boolean;
@@ -17,6 +18,7 @@ export default function CredentialPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [status, setStatus] = useState("");
+  const { did } = useDid();
 
   async function onSelect(e: React.ChangeEvent<HTMLInputElement>) {
     setError("");
@@ -39,6 +41,16 @@ export default function CredentialPage() {
 
   async function onAnchor() {
     if (!file || !hash) return;
+    if (!did) {
+      setError("Login required");
+      return;
+    }
+    const parts = did.split(":");
+    if (parts[1] !== "polkadot") {
+      setError("Only polkadot DIDs supported");
+      return;
+    }
+    const didAddress = parts[3];
     setLoading(true);
     setError("");
     setStatus("Connecting wallet…");
@@ -53,9 +65,9 @@ export default function CredentialPage() {
 
       await web3Enable("W3b Stitch");
       const accounts = await web3Accounts();
-      if (!accounts.length)
-        throw new Error("No Polkadot/SubWallet accounts found.");
-      const address = accounts[0].address;
+      const account = accounts.find((a) => a.address === didAddress);
+      if (!account) throw new Error("Wallet does not match logged-in DID");
+      const address = account.address;
 
       setStatus("Connecting to chain…");
       const api = await ApiPromise.create({
@@ -67,6 +79,7 @@ export default function CredentialPage() {
         v: "w3bstitch.anchor",
         alg: "sha256",
         hash,
+        did,
         filename: file.name,
         ts: new Date().toISOString(),
       };
@@ -94,7 +107,7 @@ export default function CredentialPage() {
               });
 
               const QRCode = (await import("qrcode")).default;
-              const verifyUrl = `${window.location.origin}/verify?hash=${encodeURIComponent(hash)}`;
+              const verifyUrl = `${window.location.origin}/verify?did=${encodeURIComponent(did)}&hash=${encodeURIComponent(hash)}`;
               const png = await QRCode.toDataURL(verifyUrl, {
                 margin: 1,
                 width: 280,
@@ -159,7 +172,7 @@ export default function CredentialPage() {
             Or open:{" "}
             <a
               className="underline"
-              href={`/verify?hash=${encodeURIComponent(hash)}`}
+              href={`/verify?did=${encodeURIComponent(did ?? "")}&hash=${encodeURIComponent(hash)}`}
             >
               /verify?hash=…
             </a>
