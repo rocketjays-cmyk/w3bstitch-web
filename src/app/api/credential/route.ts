@@ -11,14 +11,19 @@ type Ok = {
 type Err = { ok: false; error: string; detail?: string };
 type AnchorResponse = Ok | Err;
 
-export async function POST(req: NextRequest): Promise<NextResponse<AnchorResponse>> {
+export async function POST(
+  req: NextRequest,
+): Promise<NextResponse<AnchorResponse>> {
   try {
     const body = (await req.json()) as { hash?: unknown; filename?: unknown };
     const hash = typeof body.hash === "string" ? body.hash : "";
     const filename = typeof body.filename === "string" ? body.filename : "";
 
     if (!hash) {
-      return NextResponse.json({ ok: false, error: "hash required" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "hash required" },
+        { status: 400 },
+      );
     }
 
     const endpoint =
@@ -31,15 +36,21 @@ export async function POST(req: NextRequest): Promise<NextResponse<AnchorRespons
       cache: "no-store",
     });
 
-    if (!r.ok) {
-      const detail = await r.text();
+    const data = (await r.json()) as { ok?: boolean; error?: string } & Record<
+      string,
+      unknown
+    >;
+    if (!r.ok || !data.ok) {
       return NextResponse.json(
-        { ok: false, error: "anchor failed", detail },
-        { status: 502 }
+        {
+          ok: false,
+          error: data.error || "anchor failed",
+          detail: JSON.stringify(data),
+        },
+        { status: 502 },
       );
     }
 
-    const data = (await r.json()) as Record<string, unknown>;
     return NextResponse.json({
       ok: true,
       hash,
