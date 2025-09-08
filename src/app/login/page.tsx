@@ -87,9 +87,12 @@ export default function LoginPage() {
         const allAccounts = await web3Accounts();
         setAccounts(allAccounts.map((a) => a.address));
       } else {
-        const provider = (
-          window as unknown as { solana?: SolanaProvider }
-        ).solana;
+        const w =
+          window as unknown as {
+            solana?: SolanaProvider;
+            solflare?: SolanaProvider;
+          };
+        const provider = w.solana ?? w.solflare;
         if (!provider) {
           throw new Error("No Solana wallet found");
         }

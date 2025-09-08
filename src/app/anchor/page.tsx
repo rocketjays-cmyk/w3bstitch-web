@@ -3,6 +3,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import type { DispatchError } from "@polkadot/types/interfaces";
 import type { AccountInfo } from "@polkadot/types/interfaces/system";
+import type { SubmittableResult } from "@polkadot/api";
 
 /**
  * W3b Stitch — Anchor Media (Westend / Polkadot)
@@ -21,6 +22,8 @@ export default function AnchorPage() {
   const [status, setStatus] = useState("");
   const [extrinsicHash, setExtrinsicHash] = useState("");
   const [finalizedBlock, setFinalizedBlock] = useState("");
+  const [anchorDate, setAnchorDate] = useState("");
+  const [chainPayload, setChainPayload] = useState<unknown>(null);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -35,6 +38,14 @@ export default function AnchorPage() {
     let hex = "0x";
     for (const b of bytes) hex += b.toString(16).padStart(2, "0");
     return hex;
+  }
+
+  function hexToString(hex: string) {
+    const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
+    const bytes = new Uint8Array(
+      clean.match(/.{1,2}/g)?.map((b) => parseInt(b, 16)) || []
+    );
+    return new TextDecoder().decode(bytes);
   }
 
   async function sha256ArrayBuffer(buf: ArrayBuffer) {
@@ -85,7 +96,8 @@ export default function AnchorPage() {
     try {
       if (!hashHex) throw new Error("No hash to anchor.");
       if (!wallet) throw new Error("Connect wallet first.");
-
+      setAnchorDate("");
+      setChainPayload(null);
       setStatus("Connecting to chain…");
       const [{ ApiPromise, WsProvider }, { web3FromAddress }] = await Promise.all([
         import("@polkadot/api"),
@@ -132,7 +144,7 @@ export default function AnchorPage() {
       const unsub = await tx.signAndSend(
         wallet.address,
         { signer: injector.signer, nonce: -1 },
-        ({ status, dispatchError, events }) => {
+        ({ status, dispatchError, events }: SubmittableResult) => {
           if (dispatchError) {
             const err = dispatchError as DispatchError;
             if (err.isModule) {
@@ -154,7 +166,45 @@ export default function AnchorPage() {
             const failed = events.some(
               (e) => e.event.section === "system" && e.event.method === "ExtrinsicFailed"
             );
-            setStatus(failed ? "❌ Included but failed — see Subscan for details." : `🎉 Finalized in block ${blockHash}`);
+            setStatus(
+              failed
+                ? "❌ Included but failed — see Subscan for details."
+                : `🎉 Finalized in block ${blockHash}`
+            );
+
+            (async () => {
+              try {
+                const [block, ts] = await Promise.all([
+                  api.rpc.chain.getBlock(blockHash),
+                  api.query.timestamp.now.at(blockHash),
+                ]);
+                const idx = block.block.extrinsics.findIndex(
+                  (ex) => ex.hash.toHex() === tx.hash.toHex()
+                );
+                if (idx !== -1) {
+                  const remark = events.find(
+                    (e) =>
+                      e.phase.isApplyExtrinsic &&
+                      e.phase.asApplyExtrinsic.eq(idx) &&
+                      e.event.section === "system" &&
+                      e.event.method === "Remarked"
+                  );
+                  if (remark) {
+                    const hex = remark.event.data[1].toString();
+                    const text = hexToString(hex);
+                    try {
+                      setChainPayload(JSON.parse(text));
+                    } catch {
+                      setChainPayload(text);
+                    }
+                  }
+                }
+                setAnchorDate(new Date(Number(ts.toString())).toISOString());
+              } catch (err) {
+                console.error("Failed to fetch chain data", err);
+              }
+            })();
+
             unsub();
           }
         }
@@ -264,6 +314,12 @@ export default function AnchorPage() {
         <p><b>SHA-256:</b> {hashHex || "—"}</p>
         <p><b>Extrinsic Hash:</b> {extrinsicHash || "—"}</p>
         <p><b>Finalized Block:</b> {finalizedBlock || "—"}</p>
+        <p><b>Anchor Date:</b> {anchorDate || "—"}</p>
+        {chainPayload !== null && (
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+            {JSON.stringify(chainPayload, null, 2)}
+          </pre>
+        )}
         {extrinsicHash && (
           <p>
             Verify: <a href={subscanBase + extrinsicHash} target="_blank">Subscan link</a>
