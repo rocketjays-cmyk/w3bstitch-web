@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface SolanaProvider {
-  connect: () => Promise<{ publicKey: { toString(): string } }>;
-}
+import { useDid } from "@/components/DidProvider";
 
 type Chain = "westend" | "solana";
 
@@ -21,13 +18,15 @@ export default function LoginPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<ConnInfo | null>(null);
+  const { setDid } = useDid();
 
   useEffect(() => {
     setAccounts([]);
     setError(null);
     setConnInfo(null);
     setStatus("idle");
-  }, [chain]);
+    setDid(null);
+  }, [chain, setDid]);
 
   const handleLogin = async () => {
     setStatus("loading");
@@ -54,33 +53,17 @@ export default function LoginPage() {
         }
         const allAccounts = await web3Accounts();
 
+        const addresses = allAccounts.map((a) => a.address);
         setConnInfo({
           chain: chainName.toString(),
           nodeName: nodeName.toString(),
           version: version.toString(),
         });
-        setAccounts(allAccounts.map((a) => a.address));
+        setAccounts(addresses);
+        setDid(`did:polkadot:westend:${addresses[0]}`);
         await api.disconnect();
       } else {
-        const { Connection } = await import("@solana/web3.js");
-        const provider =
-          (window as unknown as { solana?: SolanaProvider }).solana ??
-          (window as unknown as { phantom?: { solana?: SolanaProvider } })
-            .phantom?.solana;
-        if (!provider) {
-          throw new Error("No Solana wallet found");
-        }
-        const connection = new Connection("https://api.devnet.solana.com");
-        const [slot, version, resp] = await Promise.all([
-          connection.getSlot(),
-          connection.getVersion(),
-          provider.connect(),
-        ]);
-        setConnInfo({
-          slot,
-          version: version["solana-core"],
-        });
-        setAccounts([resp.publicKey.toString()]);
+        throw new Error("Solana support not available");
       }
       setStatus("idle");
     } catch (e) {
