@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { fileToSha256Hex } from "../../../lib/hash";
 
 interface AnchorReceipt {
@@ -17,6 +17,7 @@ export default function CredentialPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [status, setStatus] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
 
   async function onSelect(e: React.ChangeEvent<HTMLInputElement>) {
     setError("");
@@ -25,10 +26,18 @@ export default function CredentialPage() {
     setHash("");
     const f = e.target.files?.[0] ?? null;
     setFile(f || null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(f ? URL.createObjectURL(f) : null);
     if (!f) return;
     const h = await fileToSha256Hex(f);
     setHash(h);
   }
+
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   function toHexFromUtf8(s: string) {
     const bytes = new TextEncoder().encode(s);
@@ -134,6 +143,18 @@ export default function CredentialPage() {
           </p>
         )}
       </div>
+
+      {preview && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold">Selected Image</h2>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={preview}
+            alt="Selected file preview"
+            className="border rounded-xl max-h-60"
+          />
+        </section>
+      )}
 
       <button
         onClick={onAnchor}

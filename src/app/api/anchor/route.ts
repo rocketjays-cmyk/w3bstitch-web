@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
       try {
         const unsub = await tx.signAndSend(
           signer,
-          ({ status, txHash, dispatchError }) => {
+          ({ status, dispatchError }) => {
+            const txHash = tx.hash.toHex();
             if (dispatchError) {
               unsub?.();
               resolve(
@@ -51,13 +52,18 @@ export async function POST(req: NextRequest) {
               return;
             }
             if (status.isInBlock || status.isFinalized) {
+              const blockHash = (status.isInBlock
+                ? status.asInBlock
+                : status.asFinalized
+              ).toHex();
               unsub?.();
               resolve(
                 new Response(
                   JSON.stringify({
                     ok: true,
-                    txHash: txHash.toHex(),
-                    explorer: `https://westend.subscan.io/extrinsic/${txHash.toHex()}`,
+                    txHash,
+                    blockHash,
+                    explorer: `https://westend.subscan.io/extrinsic/${txHash}`,
                   }),
                   {
                     status: 200,
