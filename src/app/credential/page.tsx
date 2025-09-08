@@ -100,11 +100,40 @@ export default function CredentialPage() {
             if (status.isInBlock) {
               setStatus("Included in block");
               const txh = txHash.toHex();
-              setReceipt({
-                ok: true,
+              const receiptPayload = {
                 txHash: txh,
-                explorer: `https://westend.subscan.io/extrinsic/${txh}`,
-              });
+                did,
+                hash,
+                filename: file.name,
+              };
+              try {
+                await fetch("/api/receipt", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(receiptPayload),
+                });
+                const resp = await fetch(`/api/receipt?txHash=${txh}`);
+                if (resp.ok) {
+                  const data = await resp.json();
+                  setReceipt({
+                    ok: true,
+                    txHash: data.receipt.txHash,
+                    explorer: `https://westend.subscan.io/extrinsic/${txh}`,
+                  });
+                } else {
+                  setReceipt({
+                    ok: true,
+                    txHash: txh,
+                    explorer: `https://westend.subscan.io/extrinsic/${txh}`,
+                  });
+                }
+              } catch {
+                setReceipt({
+                  ok: true,
+                  txHash: txh,
+                  explorer: `https://westend.subscan.io/extrinsic/${txh}`,
+                });
+              }
 
               const QRCode = (await import("qrcode")).default;
               const verifyUrl = `${window.location.origin}/verify?did=${encodeURIComponent(did)}&hash=${encodeURIComponent(hash)}`;
