@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
-    "fmt": "prettier --write ."
+    "fmt": "prettier --write .",
+    "test": "echo 'No tests specified' && exit 0"
   },
   "dependencies": {
     "@polkadot/api": "^16.4.6",
