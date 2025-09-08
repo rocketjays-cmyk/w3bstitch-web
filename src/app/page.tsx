@@ -16,7 +16,7 @@ export default function Home() {
             🔗 Polkadot Connectivity
           </a>
           <a href="/solana" className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shadow-lg transition">
-            🔥 Solana Connectivity
+            🔥 Solana Devnet (Solflare)
           </a>
           <a href="/verify" className="px-6 py-3 bg-white hover:bg-gray-200 text-black font-semibold rounded-xl shadow-lg transition">
             ✅ Try Verification

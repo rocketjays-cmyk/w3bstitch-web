@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { DispatchError } from "@polkadot/types/interfaces";
 import type { AccountInfo } from "@polkadot/types/interfaces/system";
 
 /**
- * W3b Stitch — Anchor Media (Westend / Polkadot)
+ * W3b Stitch — Anchor Media (Polkadot)
  * - Client-only (safe for Vercel)
  * - Dynamic imports for chain libs
  * - Robust tx flow: Broadcast → InBlock → Finalized (nonce:-1)
@@ -13,7 +13,6 @@ import type { AccountInfo } from "@polkadot/types/interfaces/system";
  */
 
 export default function AnchorPage() {
-  const [network, setNetwork] = useState<"westend" | "polkadot">("westend");
   const [url, setUrl] = useState("");
   const [wallet, setWallet] = useState<{ address: string } | null>(null);
   const [hashHex, setHashHex] = useState("");
@@ -43,10 +42,7 @@ export default function AnchorPage() {
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const wsEndpoint = useMemo(
-    () => (network === "westend" ? "wss://westend-rpc.polkadot.io" : "wss://rpc.polkadot.io"),
-    [network]
-  );
+  const wsEndpoint = "wss://rpc.polkadot.io";
 
   // ---------- utils ----------
   function toHexFromUtf8(s: string) {
@@ -134,9 +130,9 @@ export default function AnchorPage() {
 
       const accountInfo = accountInfoRaw as unknown as AccountInfo;
       const free = BigInt(accountInfo.data.free.toString());
-      const MIN = BigInt(1_000_000_000); // ~0.01 WND
-      if (network === "westend" && free < MIN) {
-        setStatus(`Not enough WND to pay fees. Free balance: ${free.toString()}`);
+      const MIN = BigInt(1_000_000_000); // ~0.01 DOT
+      if (free < MIN) {
+        setStatus(`Not enough DOT to pay fees. Free balance: ${free.toString()}`);
         return;
       }
 
@@ -206,7 +202,7 @@ export default function AnchorPage() {
     if (!extrinsicHash || !wallet) return;
     const receipt = {
       type: "w3bstitch.tdr",
-      chain: network,
+      chain: "polkadot",
       extrinsicHash,
       finalizedBlock: finalizedBlock || "(pending)",
       account: wallet.address,
@@ -228,10 +224,7 @@ export default function AnchorPage() {
   }
 
   // ---------- UI ----------
-  const subscanBase =
-    network === "westend"
-      ? "https://westend.subscan.io/extrinsic/"
-      : "https://polkadot.subscan.io/extrinsic/";
+  const subscanBase = "https://polkadot.subscan.io/extrinsic/";
 
   return (
     <div style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
@@ -240,13 +233,11 @@ export default function AnchorPage() {
         Hash a file or URL, then anchor via <code>system.remarkWithEvent</code>.
       </p>
 
-      <label style={{ display: "block", marginBottom: 8 }}>
-        Network:&nbsp;
-        <select value={network} onChange={(e) => setNetwork(e.target.value as "westend" | "polkadot")}>
-          <option value="westend">Westend (testnet)</option>
-          <option value="polkadot">Polkadot (mainnet)</option>
-        </select>
-      </label>
+      <div style={{ display: "block", marginBottom: 8 }}>
+        <a href="/solana">
+          <button>Solana Devnet (Solflare)</button>
+        </a>
+      </div>
 
       <div style={{ display: "grid", gap: 8, margin: "12px 0" }}>
         <input

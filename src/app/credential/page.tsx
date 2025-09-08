@@ -61,6 +61,14 @@ export default function CredentialPage() {
   return (
     <main className="mx-auto max-w-xl p-6 space-y-6">
       <h1 className="text-2xl font-bold">Credential → QR Verification</h1>
+      <div className="flex gap-2">
+        <a href="/polkadot" className="text-indigo-600 underline text-sm">
+          Polkadot
+        </a>
+        <a href="/solana" className="text-purple-600 underline text-sm">
+          Solana Devnet
+        </a>
+      </div>
 
       <div className="space-y-2">
         <label className="block text-sm font-medium">Upload credential (PDF/Image)</label>
