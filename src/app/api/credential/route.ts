@@ -21,7 +21,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<AnchorRespons
       return NextResponse.json({ ok: false, error: "hash required" }, { status: 400 });
     }
 
-    const endpoint = process.env.ANCHOR_ENDPOINT;
+    // Default to Solana devnet anchoring if no endpoint is provided.
+    const endpoint = process.env.ANCHOR_ENDPOINT ?? "https://api.devnet.solana.com";
     if (endpoint) {
       const r = await fetch(endpoint, {
         method: "POST",
