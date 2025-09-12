@@ -1,8 +1,9 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { fileToSha256Hex } from "../../../lib/hash";
 import { useDid } from "@/components/DidProvider";
+import { useWallet } from "@/components/WalletProvider";
 
 interface AnchorReceipt {
   ok: boolean;
@@ -19,6 +20,7 @@ export default function CredentialPage() {
   const [error, setError] = useState<string>("");
   const [status, setStatus] = useState("");
   const { did } = useDid();
+  const { solanaAddress, connectSolana } = useWallet();
 
   async function onSelect(e: React.ChangeEvent<HTMLInputElement>) {
     setError("");
@@ -31,6 +33,16 @@ export default function CredentialPage() {
     const h = await fileToSha256Hex(f);
     setHash(h);
   }
+
+  useEffect(() => {
+    if (!did) return;
+    const parts = did.split(":");
+    if (parts[1] === "solana" && !solanaAddress) {
+      connectSolana().catch(() => {
+        /* ignore connection errors */
+      });
+    }
+  }, [did, solanaAddress, connectSolana]);
 
   function toHexFromUtf8(s: string) {
     const bytes = new TextEncoder().encode(s);
@@ -47,7 +59,7 @@ export default function CredentialPage() {
     }
     const parts = did.split(":");
     if (parts[1] !== "polkadot") {
-      setError("Only polkadot DIDs supported");
+      setError("Only polkadot DIDs supported for anchoring");
       return;
     }
     const didAddress = parts[3];
