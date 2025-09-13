@@ -2,7 +2,7 @@ import ChainIndicator from "../components/ChainIndicator";
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white flex items-center justify-center">
+    <main className="relative min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 to-gray-100 text-gray-800 flex items-center justify-center">
       <div className="absolute top-4 right-4">
         <ChainIndicator />
       </div>
