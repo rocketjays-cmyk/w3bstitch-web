@@ -5,9 +5,20 @@ import { fileToSha256Hex } from "../../../lib/hash";
 import { useDid } from "@/components/DidProvider";
 
 interface AnchorReceipt {
-  ok: boolean;
-  txHash: string;
-  explorer?: string;
+  type: "w3bstitch.tdr";
+  chain: "westend";
+  extrinsicHash: string;
+  finalizedBlock: string;
+  account: string;
+  payload: {
+    v: "w3bstitch.anchor";
+    alg: "sha256";
+    hash: string;
+    did: string;
+    filename: string;
+    ts: string;
+  };
+  explorer: string;
 }
 
 export default function CredentialPage() {
@@ -86,7 +97,7 @@ export default function CredentialPage() {
       const hexPayload = toHexFromUtf8(JSON.stringify(payload));
       const tx = api.tx.system.remarkWithEvent(hexPayload);
 
-      setStatus("Awaiting wallet confirmation…");
+      setStatus("Requesting wallet signature…");
       await new Promise<void>(async (resolve, reject) => {
         const unsub = await tx.signAndSend(
           address,
@@ -97,14 +108,29 @@ export default function CredentialPage() {
               reject(new Error(dispatchError.toString()));
               return;
             }
-            if (status.isInBlock) {
-              setStatus("Included in block");
+            if (status.isBroadcast) setStatus("📡 Broadcasted… waiting for inclusion");
+            if (status.isInBlock) setStatus(`✅ Included in block: ${status.asInBlock.toString()}`);
+            if (status.isFinalized) {
+              const blockHash = status.asFinalized.toString();
+              setStatus(`🎉 Finalized in block ${blockHash}`);
               const txh = txHash.toHex();
-              setReceipt({
-                ok: true,
-                txHash: txh,
+              const receipt: AnchorReceipt = {
+                type: "w3bstitch.tdr",
+                chain: "westend",
+                extrinsicHash: txh,
+                finalizedBlock: blockHash,
+                account: address,
+                payload: {
+                  v: "w3bstitch.anchor",
+                  alg: "sha256",
+                  hash,
+                  did,
+                  filename: file.name,
+                  ts: new Date().toISOString(),
+                },
                 explorer: `https://westend.subscan.io/extrinsic/${txh}`,
-              });
+              };
+              setReceipt(receipt);
 
               const QRCode = (await import("qrcode")).default;
               const verifyUrl = `${window.location.origin}/verify?did=${encodeURIComponent(did)}&hash=${encodeURIComponent(hash)}`;
@@ -113,9 +139,6 @@ export default function CredentialPage() {
                 width: 280,
               });
               setQr(png);
-            }
-            if (status.isFinalized) {
-              setStatus("Finalized");
               unsub();
               resolve();
             }
@@ -128,7 +151,6 @@ export default function CredentialPage() {
       setError(msg);
     } finally {
       setLoading(false);
-      setStatus("");
     }
   }
 
@@ -184,7 +206,7 @@ export default function CredentialPage() {
         <section className="space-y-2">
           <h3 className="font-semibold">Receipt</h3>
           <p className="text-xs break-all">
-            Tx: <span className="font-mono">{receipt.txHash}</span>
+            Tx: <span className="font-mono">{receipt.extrinsicHash}</span>
             {receipt.explorer && (
               <>
                 {" "}
