@@ -13,8 +13,7 @@ export default function Home() {
 
         <p className="mb-10 text-lg text-gray-300 max-w-2xl mx-auto">
           A decentralized trust engine for verifying media, credentials, and
-          identities. Built on <span className="font-semibold">Polkadot</span>{" "}
-          for security and interoperability.
+          identities.
         </p>
 
         <div className="flex items-center justify-center gap-4 flex-wrap">
