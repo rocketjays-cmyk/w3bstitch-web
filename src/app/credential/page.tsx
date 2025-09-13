@@ -53,8 +53,20 @@ export default function CredentialPage() {
     const didAddress = parts[3];
     setLoading(true);
     setError("");
-    setStatus("Connecting wallet…");
     try {
+      // Generate QR code ahead of wallet interaction so it is available even
+      // if the user never confirms the transaction in their wallet.
+      const QRCode = (await import("qrcode")).default;
+      const verifyUrl = `${window.location.origin}/verify?did=${encodeURIComponent(
+        did,
+      )}&hash=${encodeURIComponent(hash)}`;
+      const png = await QRCode.toDataURL(verifyUrl, {
+        margin: 1,
+        width: 280,
+      });
+      setQr(png);
+
+      setStatus("Connecting wallet…");
       const [
         { web3Enable, web3Accounts, web3FromAddress },
         { ApiPromise, WsProvider },
@@ -105,14 +117,6 @@ export default function CredentialPage() {
                 txHash: txh,
                 explorer: `https://westend.subscan.io/extrinsic/${txh}`,
               });
-
-              const QRCode = (await import("qrcode")).default;
-              const verifyUrl = `${window.location.origin}/verify?did=${encodeURIComponent(did)}&hash=${encodeURIComponent(hash)}`;
-              const png = await QRCode.toDataURL(verifyUrl, {
-                margin: 1,
-                width: 280,
-              });
-              setQr(png);
             }
             if (status.isFinalized) {
               setStatus("Finalized");
