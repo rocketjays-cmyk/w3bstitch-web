@@ -2,18 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useDid } from "@/components/DidProvider";
-
-interface SolflareWallet {
-  isSolflare?: boolean;
-  connect: () => Promise<{ publicKey: { toString(): string } } | void>;
-  disconnect?: () => Promise<void> | void;
-  publicKey?: { toString(): string };
-}
-
-interface SolflareWindow extends Window {
-  solflare?: SolflareWallet;
-  solana?: SolflareWallet;
-}
+import { useWallet } from "@/components/WalletProvider";
 
 type Chain = "westend" | "solana";
 
@@ -31,14 +20,18 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<ConnInfo | null>(null);
   const { setDid } = useDid();
+  const { connectSolana, disconnectSolana, solanaAddress } = useWallet();
 
   useEffect(() => {
-    setAccounts([]);
+    setAccounts(chain === "solana" && solanaAddress ? [solanaAddress] : []);
     setError(null);
     setConnInfo(null);
     setStatus("idle");
+    if (chain !== "solana") {
+      disconnectSolana();
+    }
     setDid(null);
-  }, [chain, setDid]);
+  }, [chain, setDid, solanaAddress, disconnectSolana]);
 
   const handleLogin = async () => {
     setStatus("loading");
@@ -75,19 +68,7 @@ export default function LoginPage() {
         setDid(`did:polkadot:westend:${addresses[0]}`);
         await api.disconnect();
       } else {
-        const provider =
-          (window as SolflareWindow).solflare ??
-          (window as SolflareWindow).solana;
-        if (!provider) {
-          throw new Error("No Solflare wallet found");
-        }
-        if (!provider.publicKey) {
-          await provider.connect();
-        }
-        const pubkey = provider.publicKey?.toString();
-        if (!pubkey) {
-          throw new Error("Failed to retrieve public key");
-        }
+        const pubkey = await connectSolana();
         const { Connection } = await import("@solana/web3.js");
         const connection = new Connection("https://api.mainnet-beta.solana.com");
         const [slot, versionInfo] = await Promise.all([
